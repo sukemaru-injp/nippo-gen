@@ -23,6 +23,7 @@
 	"packageManager": "pnpm@10.28.2",
 	"dependencies": {
 		"@hono/zod-validator": "^0.7.6",
+		"@mastra/core": "^1.1.0",
 		"@stylexjs/stylex": "^0.17.5",
 		"hono": "^4.11.7",
 		"mime-types": "^3.0.2",
