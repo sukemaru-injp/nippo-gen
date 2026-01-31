@@ -233,7 +233,7 @@ type ModelKey = 'gemini-2.5-flash';
 
 export default function App() {
 	const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
-	const [result, setResult] = useState('');
+	const [result, setResult] = useState<string | null>(null);
 
 	// ★ 追加: 設定 state
 	const [tools, setTools] = useState<ToolKey[]>(['github', 'google_calendar']);
