@@ -1,0 +1,2 @@
+# nippo-gen
+
