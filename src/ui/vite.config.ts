@@ -12,10 +12,18 @@ export default defineConfig({
 		react()
 	],
 	server: {
-		port: 9000
+		port: 9000,
+		proxy: {
+			'/api': 'http://127.0.0.1:8787'
+		}
 	},
 	build: {
 		outDir: resolve(__dirname, '../../dist/ui'),
 		emptyOutDir: true
+	},
+	resolve: {
+		alias: {
+			'@api': resolve(__dirname, '../../server')
+		}
 	}
 });

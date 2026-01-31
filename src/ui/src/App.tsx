@@ -1,5 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { client } from './api/client';
 
 const styles = stylex.create({
 	page: {
@@ -238,30 +239,21 @@ export default function App() {
 	const [tools, setTools] = useState<ToolKey[]>(['github', 'google_calendar']);
 	const [model, setModel] = useState<ModelKey>('gemini-2.5-flash');
 
-	const dummy = useMemo(
-		() => ({
-			date: new Date().toISOString().slice(0, 10),
-			dummy: {
-				todo1: 'テンプレ入力UIの骨格作成',
-				todo2: 'StyleX導入 & Settings追加',
-				next1: 'GitHub/Google連携APIをつなぐ'
-			}
-		}),
-		[]
-	);
+	const onGenerate = useCallback(async () => {
+		const date = new Date().toISOString().slice(0, 10);
 
-	const onGenerate = () => {
-		// いまはダミー：本来は /api/generate に { template, tools, model } を投げる
-		const out = template
-			.replaceAll('{{date}}', dummy.date)
-			.replaceAll('{{dummy.todo1}}', dummy.dummy.todo1)
-			.replaceAll('{{dummy.todo2}}', dummy.dummy.todo2)
-			.replaceAll('{{dummy.next1}}', dummy.dummy.next1);
+		const res = await client.api.generate.$post({
+			json: { date, template, tools, model }
+		});
 
-		const header = `<!-- tools=${tools.join(',')} model=${model} -->\n\n`;
+		if (!res.ok) {
+			setResult(`error: ${res.status} ${res.statusText}`);
+			return;
+		}
 
-		setResult(header + out);
-	};
+		const data = await res.json();
+		setResult(data.output);
+	}, [template, tools, model]);
 
 	return (
 		<div {...stylex.props(styles.page)}>
