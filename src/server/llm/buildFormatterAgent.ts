@@ -15,7 +15,7 @@ export function buildFormatterAgent() {
 			'Output must be Markdown text only.',
 			'Do not include secrets or API keys.'
 		].join('\n'),
-		model: 'google/gemini-2.0-flash'
+		model: 'google/gemini-2.5-flash-lite'
 	});
 
 	return agent;

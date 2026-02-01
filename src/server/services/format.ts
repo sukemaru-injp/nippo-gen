@@ -2,7 +2,7 @@
 import type { Draft } from '../types';
 
 type Args = {
-	model: 'google/gemini-2.0-flash';
+	model: 'google/gemini-2.5-flash-lite';
 	template: string;
 	draft: Draft;
 };
@@ -22,7 +22,7 @@ export async function formatNippoWithMastra({ template, draft }: Args) {
 	// 		'秘密情報（APIキー等）を出力しないでください。',
 	// 		'出力はMarkdownテキストのみ。'
 	// 	],
-	// 	model: `google/${model}` // => "google/gemini-2.0-flash"
+	// 	model: `google/${model}` // => "google/gemini-2.5-flash-lite"
 	// });
 
 	// const prompt = [

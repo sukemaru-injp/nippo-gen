@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 const ToolKey = z.enum(['github', 'google_calendar']);
-const ModelKey = z.enum(['google/gemini-2.0-flash']);
+const ModelKey = z.enum(['google/gemini-2.5-flash-lite']);
 
 const GenerateReq = z.object({
 	date: z.string(),
@@ -30,7 +30,7 @@ export const generateRoute = new Hono().post(
 			tools,
 			values: [
 				'Hono RPC で型安全化',
-				'Mastra (Google Gemini 2.0 Flash) を差し込み',
+				'Mastra (Google Gemini 2.5 Flash-Lite) を差し込み',
 				'GitHub / Google Calendar 収集'
 			]
 		};
