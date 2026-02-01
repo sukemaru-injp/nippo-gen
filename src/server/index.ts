@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
-import { app } from './app';
 import open from 'open';
+import { app } from './app';
 
 const port = Number(process.env.NIPPO_SERVER_PORT ?? 9000);
 

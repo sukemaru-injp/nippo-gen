@@ -236,7 +236,7 @@ const ToolOptions: { label: string; value: ToolKey }[] = [
 	{ label: 'Google Calendar', value: 'google_calendar' }
 ];
 
-type ModelKey = 'gemini-2.5-flash';
+type ModelKey = 'google/gemini-2.0-flash';
 
 const getLocalDateString = () => {
 	const now = new Date();
@@ -253,7 +253,7 @@ export default function App() {
 
 	// ★ 追加: 設定 state
 	const [tools, setTools] = useState<ToolKey[]>(['github', 'google_calendar']);
-	const [model, setModel] = useState<ModelKey>('gemini-2.5-flash');
+	const [model, setModel] = useState<ModelKey>('google/gemini-2.0-flash');
 	const [date, setDate] = useState(today);
 
 	const onGenerate = useCallback(async () => {
@@ -338,7 +338,9 @@ export default function App() {
 							value={model}
 							onChange={(e) => setModel(e.target.value as ModelKey)}
 						>
-							<option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+							<option value="google/gemini-2.0-flash">
+								Google Gemini 2.0 Flash
+							</option>
 						</select>
 					</div>
 				</div>
