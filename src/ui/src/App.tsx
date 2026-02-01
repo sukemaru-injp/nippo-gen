@@ -51,9 +51,9 @@ const styles = stylex.create({
 
 	// ★ 追加: Settings セクション
 	settings: {
-		display: 'flex',
-		alignItems: 'flex-start',
-		justifyContent: 'space-between',
+		display: 'grid',
+		gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+		alignItems: 'start',
 		gap: 16,
 		padding: 14,
 		marginBottom: 16,
@@ -64,20 +64,11 @@ const styles = stylex.create({
 		backgroundColor: 'rgba(255,255,255,0.04)'
 	},
 
-	settingsLeft: {
+	settingsColumn: {
 		display: 'flex',
 		flexDirection: 'column',
 		gap: 10,
-		minWidth: 0,
-		flex: 1
-	},
-
-	settingsRight: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 10,
-		minWidth: 0,
-		flex: 1
+		minWidth: 0
 	},
 
 	settingsTitle: {
@@ -96,6 +87,22 @@ const styles = stylex.create({
 	},
 
 	select: {
+		width: '100%',
+		borderRadius: 12,
+		borderWidth: 1,
+		borderStyle: 'solid',
+		borderColor: 'rgba(169,214,218,0.25)',
+		padding: '10px 12px',
+		backgroundColor: 'rgba(0,0,0,0.18)',
+		color: '#e6f1f2',
+		outline: 'none',
+		boxSizing: 'border-box',
+		':focus': {
+			borderColor: '#f2f21b',
+			boxShadow: '0 0 0 2px rgba(242,242,27,0.25)'
+		}
+	},
+	dateInput: {
 		width: '100%',
 		borderRadius: 12,
 		borderWidth: 1,
@@ -231,17 +238,25 @@ const ToolOptions: { label: string; value: ToolKey }[] = [
 
 type ModelKey = 'gemini-2.5-flash';
 
+const getLocalDateString = () => {
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = String(now.getMonth() + 1).padStart(2, '0');
+	const day = String(now.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+};
+
 export default function App() {
 	const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
 	const [result, setResult] = useState<string | null>(null);
+	const today = getLocalDateString();
 
 	// ★ 追加: 設定 state
 	const [tools, setTools] = useState<ToolKey[]>(['github', 'google_calendar']);
 	const [model, setModel] = useState<ModelKey>('gemini-2.5-flash');
+	const [date, setDate] = useState(today);
 
 	const onGenerate = useCallback(async () => {
-		const date = new Date().toISOString().slice(0, 10);
-
 		const res = await client.api.generate.$post({
 			json: { date, template, tools, model }
 		});
@@ -253,7 +268,7 @@ export default function App() {
 
 		const data = await res.json();
 		setResult(data.output);
-	}, [template, tools, model]);
+	}, [date, template, tools, model]);
 
 	return (
 		<div {...stylex.props(styles.page)}>
@@ -265,46 +280,57 @@ export default function App() {
 			</div>
 
 			<section {...stylex.props(styles.settings)}>
-				<div {...stylex.props(styles.settingsLeft)}>
+				<div {...stylex.props(styles.settingsColumn)}>
 					<div {...stylex.props(styles.settingsTitle)}>Settings</div>
 
 					<div>
-						<div>
-							<div {...stylex.props(styles.fieldLabel)}>対象ツール</div>
-							<div {...stylex.props(styles.checkboxHint)}>
-								使用するデータソースを選択してください
-							</div>
+						<div {...stylex.props(styles.fieldLabel)}>日付</div>
+						<input
+							type="date"
+							{...stylex.props(styles.dateInput)}
+							value={date}
+							max={today}
+							onChange={(e) => setDate(e.target.value)}
+						/>
+					</div>
+				</div>
 
-							<div {...stylex.props(styles.checkboxGroup)}>
-								{ToolOptions.map((option) => {
-									return (
-										<React.Fragment key={option.value}>
-											<label {...stylex.props(styles.checkboxLabel)}>
-												<input
-													type="checkbox"
-													{...stylex.props(styles.checkboxInput)}
-													checked={tools.includes(option.value)}
-													onChange={(e) => {
-														setTools((prev) =>
-															e.target.checked
-																? [...prev, option.value]
-																: prev.filter((t) => t !== option.value)
-														);
-													}}
-												/>
-												{option.label}
-											</label>
-										</React.Fragment>
-									);
-								})}
-							</div>
+				<div {...stylex.props(styles.settingsColumn)}>
+					<div {...stylex.props(styles.settingsTitle)}>&nbsp;</div>
+					<div>
+						<div {...stylex.props(styles.fieldLabel)}>対象ツール</div>
+						<div {...stylex.props(styles.checkboxHint)}>
+							使用するデータソースを選択してください
+						</div>
+
+						<div {...stylex.props(styles.checkboxGroup)}>
+							{ToolOptions.map((option) => {
+								return (
+									<React.Fragment key={option.value}>
+										<label {...stylex.props(styles.checkboxLabel)}>
+											<input
+												type="checkbox"
+												{...stylex.props(styles.checkboxInput)}
+												checked={tools.includes(option.value)}
+												onChange={(e) => {
+													setTools((prev) =>
+														e.target.checked
+															? [...prev, option.value]
+															: prev.filter((t) => t !== option.value)
+													);
+												}}
+											/>
+											{option.label}
+										</label>
+									</React.Fragment>
+								);
+							})}
 						</div>
 					</div>
 				</div>
 
-				<div {...stylex.props(styles.settingsRight)}>
+				<div {...stylex.props(styles.settingsColumn)}>
 					<div {...stylex.props(styles.settingsTitle)}>&nbsp;</div>
-
 					<div>
 						<div {...stylex.props(styles.fieldLabel)}>LLMモデル</div>
 						<select
