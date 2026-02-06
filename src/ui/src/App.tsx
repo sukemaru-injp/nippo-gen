@@ -253,8 +253,7 @@ export default function App() {
 
 	// ★ 追加: 設定 state
 	const [tools, setTools] = useState<ToolKey[]>(['github', 'google_calendar']);
-	const [model, setModel] =
-		useState<ModelKey>('google/gemini-2.5-flash-lite');
+	const [model, setModel] = useState<ModelKey>('google/gemini-2.5-flash-lite');
 	const [date, setDate] = useState(today);
 
 	const onGenerate = useCallback(async () => {
