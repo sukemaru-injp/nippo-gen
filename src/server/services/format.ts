@@ -26,8 +26,12 @@ export async function formatNippoWithMastra({ model, template, draft }: Args) {
 		JSON.stringify(draft, null, 2)
 	].join('\n');
 
-	const output = await agent.generate(prompt);
-	return typeof output === 'string' ? output : String(output);
+	const output = await agent.generate(prompt, {
+		onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
+			console.log({ text, toolCalls, toolResults, finishReason, usage });
+		}
+	});
+	return normalizeMastraOutput(output);
 }
 
 function fallbackFormat(template: string, draft: Draft) {
@@ -38,4 +42,29 @@ function fallbackFormat(template: string, draft: Draft) {
 		.replaceAll('{{dummy.todo1}}', draft.values[0] ?? '')
 		.replaceAll('{{dummy.todo2}}', draft.values[1] ?? '')
 		.replaceAll('{{dummy.next1}}', draft.values[2] ?? '');
+}
+
+function normalizeMastraOutput(output: unknown): string {
+	if (typeof output === 'string') return output;
+	if (!output || typeof output !== 'object') return String(output);
+
+	const record = output as Record<string, unknown>;
+
+	if (typeof record.text === 'string') return record.text;
+	if (typeof record.content === 'string') return record.content;
+	if (typeof record.output === 'string') return record.output;
+	if (typeof record.message === 'string') return record.message;
+	if (typeof record.result === 'string') return record.result;
+	if (typeof record.data === 'string') return record.data;
+
+	const choices = record.choices;
+	if (Array.isArray(choices) && choices.length > 0) {
+		const first = choices[0] as Record<string, unknown>;
+		const message = first?.message as Record<string, unknown> | undefined;
+		if (message && typeof message.content === 'string') return message.content;
+		const delta = first?.delta as Record<string, unknown> | undefined;
+		if (delta && typeof delta.content === 'string') return delta.content;
+	}
+
+	return JSON.stringify(output, null, 2);
 }

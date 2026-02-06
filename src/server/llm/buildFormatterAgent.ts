@@ -24,6 +24,7 @@ export async function buildFormatterAgent({ model, tools }: Args) {
 		instructions: [
 			'You are a nippo(日報) formatter.',
 			'Use tools to fetch information if needed.',
+			'If helpful, use GitHub MCP to reference PRs and commits related to the work summary.',
 			'You MUST use only the provided draft data and tool outputs.',
 			'Follow the template as closely as possible.',
 			'Output must be Markdown text only.',

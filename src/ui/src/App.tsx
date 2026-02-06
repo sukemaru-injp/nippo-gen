@@ -102,6 +102,24 @@ const styles = stylex.create({
 			boxShadow: '0 0 0 2px rgba(242,242,27,0.25)'
 		}
 	},
+	valuesTextarea: {
+		width: '100%',
+		minHeight: 120,
+		borderRadius: 12,
+		borderWidth: 1,
+		borderStyle: 'solid',
+		borderColor: 'rgba(169,214,218,0.25)',
+		padding: '10px 12px',
+		backgroundColor: 'rgba(0,0,0,0.18)',
+		color: '#e6f1f2',
+		outline: 'none',
+		boxSizing: 'border-box',
+		resize: 'vertical',
+		':focus': {
+			borderColor: '#f2f21b',
+			boxShadow: '0 0 0 2px rgba(242,242,27,0.25)'
+		}
+	},
 	dateInput: {
 		width: '100%',
 		borderRadius: 12,
@@ -249,6 +267,7 @@ const getLocalDateString = () => {
 export default function App() {
 	const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
 	const [result, setResult] = useState<string | null>(null);
+	const [valuesText, setValuesText] = useState('');
 	const today = getLocalDateString();
 
 	// ★ 追加: 設定 state
@@ -257,8 +276,13 @@ export default function App() {
 	const [date, setDate] = useState(today);
 
 	const onGenerate = useCallback(async () => {
+		const values = valuesText
+			.split('\n')
+			.map((line) => line.trim())
+			.filter(Boolean);
+
 		const res = await client.api.generate.$post({
-			json: { date, template, tools, model }
+			json: { date, template, values, tools, model }
 		});
 
 		if (!res.ok) {
@@ -268,7 +292,7 @@ export default function App() {
 
 		const data = await res.json();
 		setResult(data.output);
-	}, [date, template, tools, model]);
+	}, [date, template, tools, model, valuesText]);
 
 	return (
 		<div {...stylex.props(styles.page)}>
@@ -348,6 +372,14 @@ export default function App() {
 
 			<div {...stylex.props(styles.container)}>
 				<div {...stylex.props(styles.pane)}>
+					<div {...stylex.props(styles.label)}>Work Summary</div>
+					<textarea
+						{...stylex.props(styles.valuesTextarea)}
+						value={valuesText}
+						placeholder={'- 例: 認証画面のUI修正\\n- 例: バグ修正 (#123)'}
+						onChange={(e) => setValuesText(e.target.value)}
+					/>
+
 					<div {...stylex.props(styles.label)}>Template</div>
 					<textarea
 						{...stylex.props(styles.textarea)}

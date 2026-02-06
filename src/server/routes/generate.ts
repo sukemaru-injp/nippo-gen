@@ -10,6 +10,7 @@ const ModelKey = z.enum(['google/gemini-2.5-flash-lite']);
 const GenerateReq = z.object({
 	date: z.string(),
 	template: z.string(),
+	values: z.array(z.string()),
 	tools: z.array(ToolKey),
 	model: ModelKey
 });
@@ -23,16 +24,11 @@ export const generateRoute = new Hono().post(
 	'/generate',
 	zValidator('json', GenerateReq),
 	async (c) => {
-		const { date, template, tools, model } = c.req.valid('json');
-		// いまはダミーsignals（後で GitHub/Calendar をここに差し込む）
+		const { date, template, values, tools, model } = c.req.valid('json');
 		const draft: Draft = {
 			date,
 			tools,
-			values: [
-				'Hono RPC で型安全化',
-				'Mastra (Google Gemini 2.5 Flash-Lite) を差し込み',
-				'GitHub / Google Calendar 収集'
-			]
+			values
 		};
 
 		// LLM（Mastra）で整形。キーが無い場合はローカル整形にフォールバック。
