@@ -26,6 +26,11 @@ export const generateRoute = new Hono().post(
 	zValidator('json', GenerateReq),
 	async (c) => {
 		const { date, template, values, repos, tools, model } = c.req.valid('json');
+		console.log('Started Generate:', {
+			date,
+			values
+		});
+
 		const draft: Draft = {
 			date,
 			tools,

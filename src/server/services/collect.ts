@@ -1,4 +1,5 @@
 import { buildCollectorAgent } from '@api/llm/buildCollectorAgent';
+import { buildCollectionPlan } from '@api/services/plan';
 import type { CollectedData, Draft } from '@api/types';
 
 export async function collectSignals({
@@ -13,18 +14,21 @@ export async function collectSignals({
 		tools: draft.tools
 	});
 
-	const valuesJson = JSON.stringify(draft.values, null, 2);
+	const plan = buildCollectionPlan(draft);
+	const valuesJson = JSON.stringify(plan.queries, null, 2);
 	const prompt = [
 		'Collect GitHub signals for the daily report.',
-		`Target date: ${draft.date}`,
-		draft.repos && draft.repos.length > 0
-			? `Target repos (only these): ${draft.repos.join(', ')}`
+		`Target date: ${plan.date}`,
+		plan.repos.length > 0
+			? `Target repos (only these): ${plan.repos.join(', ')}`
 			: 'Target repos: all accessible repos',
 		'Work summary items:',
 		valuesJson,
 		'',
 		'If GitHub tools are available, search PRs, commits, and discussions related to the summary items.',
-		`If Work summary items is empty (${valuesJson === '[]' ? 'it is empty' : 'not empty'}), use recent activity for the target date instead (recent PRs, commits, and discussions).`,
+		plan.useRecentActivity
+			? 'Work summary items is empty, so use recent activity for the target date instead (recent PRs, commits, and discussions).'
+			: 'Work summary items is not empty, use them as search queries.',
 		'Prefer using GitHub tools when available; do not ask questions.',
 		'Return JSON only with keys: github (array), calendar (array).',
 		'Calendar can be empty for now.'

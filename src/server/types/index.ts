@@ -14,6 +14,13 @@ export type CollectedData = {
 	calendar?: string[];
 };
 
+export type CollectionPlan = {
+	date: string;
+	repos: string[];
+	queries: string[];
+	useRecentActivity: boolean;
+};
+
 export type Draft = {
 	date: string;
 	tools: ToolKey[];
