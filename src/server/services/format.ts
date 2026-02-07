@@ -1,4 +1,5 @@
 import { buildFormatterAgent } from '@api/llm/buildFormatterAgent';
+import { collectSignals } from '@api/services/collect';
 import type { Draft } from '../types';
 
 type Args = {
@@ -14,16 +15,20 @@ export async function formatNippoWithMastra({ model, template, draft }: Args) {
 	}
 
 	const agent = await buildFormatterAgent({
-		model,
-		tools: draft.tools
+		model
 	});
+
+	const collected = await collectSignals({ model, draft });
 
 	const prompt = [
 		'## template',
 		template,
 		'',
 		'## draft(JSON)',
-		JSON.stringify(draft, null, 2)
+		JSON.stringify(draft, null, 2),
+		'',
+		'## collected(JSON)',
+		JSON.stringify(collected, null, 2)
 	].join('\n');
 
 	const output = await agent.generate(prompt, {

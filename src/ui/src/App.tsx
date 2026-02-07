@@ -268,6 +268,7 @@ export default function App() {
 	const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
 	const [result, setResult] = useState<string | null>(null);
 	const [valuesText, setValuesText] = useState('');
+	const [isGenerating, setIsGenerating] = useState(false);
 	const today = getLocalDateString();
 
 	// ★ 追加: 設定 state
@@ -276,30 +277,41 @@ export default function App() {
 	const [date, setDate] = useState(today);
 
 	const onGenerate = useCallback(async () => {
+		if (isGenerating) return;
+
+		setIsGenerating(true);
 		const values = valuesText
 			.split('\n')
 			.map((line) => line.trim())
 			.filter(Boolean);
 
-		const res = await client.api.generate.$post({
-			json: { date, template, values, tools, model }
-		});
+		try {
+			const res = await client.api.generate.$post({
+				json: { date, template, values, tools, model }
+			});
 
-		if (!res.ok) {
-			setResult(`error: ${res.status} ${res.statusText}`);
-			return;
+			if (!res.ok) {
+				setResult(`error: ${res.status} ${res.statusText}`);
+				return;
+			}
+
+			const data = await res.json();
+			setResult(data.output);
+		} finally {
+			setIsGenerating(false);
 		}
-
-		const data = await res.json();
-		setResult(data.output);
-	}, [date, template, tools, model, valuesText]);
+	}, [date, template, tools, model, valuesText, isGenerating]);
 
 	return (
 		<div {...stylex.props(styles.page)}>
 			<div {...stylex.props(styles.header)}>
 				<h1 {...stylex.props(styles.title)}>nippo-gen</h1>
-				<button {...stylex.props(styles.button)} onClick={onGenerate}>
-					生成
+				<button
+					{...stylex.props(styles.button)}
+					onClick={onGenerate}
+					disabled={isGenerating}
+				>
+					{isGenerating ? '生成中...' : '生成'}
 				</button>
 			</div>
 
