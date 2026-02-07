@@ -1,5 +1,4 @@
-import { formatNippoWithMastra } from '@api/services/format';
-import type { Draft } from '@api/types';
+import { nippoWorkflowCommitted } from '@api/workflows/nippoWorkflow';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -31,19 +30,16 @@ export const generateRoute = new Hono().post(
 			values
 		});
 
-		const draft: Draft = {
-			date,
-			tools,
-			values,
-			repos
-		};
-
-		// LLM（Mastra）で整形。キーが無い場合はローカル整形にフォールバック。
-		const output = await formatNippoWithMastra({
-			model,
-			template,
-			draft
+		const run = await nippoWorkflowCommitted.createRun();
+		const result = await run.start({
+			inputData: { date, template, values, repos, tools, model }
 		});
+
+		if (result.status !== 'success') {
+			return c.json({ output: 'workflow failed', meta: { model, tools } }, 500);
+		}
+
+		const output = result.result.output;
 
 		const res: GenerateResponse = {
 			output,

@@ -1,14 +1,20 @@
 import { buildFormatterAgent } from '@api/llm/buildFormatterAgent';
 import { collectSignals } from '@api/services/collect';
-import type { Draft } from '../types';
+import type { CollectedData, Draft } from '../types';
 
 type Args = {
 	model: 'google/gemini-2.5-flash-lite';
 	template: string;
 	draft: Draft;
+	collected?: CollectedData;
 };
 
-export async function formatNippoWithMastra({ model, template, draft }: Args) {
+export async function formatNippoWithMastra({
+	model,
+	template,
+	draft,
+	collected: providedCollected
+}: Args) {
 	// キーが無ければローカル置換（開発しやすさ優先）
 	if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
 		return fallbackFormat(template, draft);
@@ -18,7 +24,8 @@ export async function formatNippoWithMastra({ model, template, draft }: Args) {
 		model
 	});
 
-	const collected = await collectSignals({ model, draft });
+	const collected =
+		providedCollected ?? (await collectSignals({ model, draft }));
 
 	const prompt = [
 		'## template',
@@ -49,7 +56,7 @@ function fallbackFormat(template: string, draft: Draft) {
 		.replaceAll('{{dummy.next1}}', draft.values[2] ?? '');
 }
 
-function normalizeMastraOutput(output: unknown): string {
+export function normalizeMastraOutput(output: unknown): string {
 	if (typeof output === 'string') return output;
 	if (!output || typeof output !== 'object') return String(output);
 

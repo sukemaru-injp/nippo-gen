@@ -15,14 +15,7 @@ export async function buildCollectorAgent({ model, tools }: Args) {
 	if (cached) return cached;
 
 	const mcp = tools.includes('github')
-		? (async () => {
-				try {
-					return await getGithubMcpClient()?.listTools();
-				} catch {
-					console.warn('[collector] failed to list GitHub MCP tools');
-					return undefined;
-				}
-			})()
+		? await getGithubMcpClient()?.listToolsets()
 		: undefined;
 
 	const agent = new Agent({
@@ -38,7 +31,7 @@ export async function buildCollectorAgent({ model, tools }: Args) {
 			'If nothing found, return empty arrays.'
 		].join('\n'),
 		model,
-		tools: await mcp
+		tools: mcp
 	});
 
 	agentCache.set(key, agent);
