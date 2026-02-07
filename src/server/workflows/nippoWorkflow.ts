@@ -249,9 +249,5 @@ function coerceText(output: unknown): string | null {
 
 function fallbackFormat(template: string, draft: Draft) {
 	const date = draft?.date ?? new Date().toISOString().slice(0, 10);
-	return template
-		.replaceAll('{{date}}', date)
-		.replaceAll('{{dummy.todo1}}', draft.values[0] ?? '')
-		.replaceAll('{{dummy.todo2}}', draft.values[1] ?? '')
-		.replaceAll('{{dummy.next1}}', draft.values[2] ?? '');
+	return template.replaceAll('{{date}}', date);
 }
