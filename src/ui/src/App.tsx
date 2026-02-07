@@ -239,12 +239,20 @@ const styles = stylex.create({
 
 const DEFAULT_TEMPLATE = `# 日報 {{date}}
 
-## やったこと
-- {{dummy.todo1}}
-- {{dummy.todo2}}
+## 作業要約
+1.
+2.
+3.
+...
 
-## 明日やること
-- {{dummy.next1}}
+## PullRequests
+- 
+- 
+- 
+
+## TODO
+-
+-
 `;
 
 type ToolKey = 'github' | 'google_calendar';
