@@ -11,6 +11,7 @@ const GenerateReq = z.object({
 	date: z.string(),
 	template: z.string(),
 	values: z.array(z.string()),
+	repos: z.array(z.string()).optional(),
 	tools: z.array(ToolKey),
 	model: ModelKey
 });
@@ -24,11 +25,12 @@ export const generateRoute = new Hono().post(
 	'/generate',
 	zValidator('json', GenerateReq),
 	async (c) => {
-		const { date, template, values, tools, model } = c.req.valid('json');
+		const { date, template, values, repos, tools, model } = c.req.valid('json');
 		const draft: Draft = {
 			date,
 			tools,
-			values
+			values,
+			repos
 		};
 
 		// LLM（Mastra）で整形。キーが無い場合はローカル整形にフォールバック。

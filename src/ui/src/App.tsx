@@ -268,6 +268,7 @@ export default function App() {
 	const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
 	const [result, setResult] = useState<string | null>(null);
 	const [valuesText, setValuesText] = useState('');
+	const [reposText, setReposText] = useState('');
 	const [isGenerating, setIsGenerating] = useState(false);
 	const today = getLocalDateString();
 
@@ -284,10 +285,14 @@ export default function App() {
 			.split('\n')
 			.map((line) => line.trim())
 			.filter(Boolean);
+		const repos = reposText
+			.split('\n')
+			.map((line) => line.trim())
+			.filter(Boolean);
 
 		try {
 			const res = await client.api.generate.$post({
-				json: { date, template, values, tools, model }
+				json: { date, template, values, repos, tools, model }
 			});
 
 			if (!res.ok) {
@@ -300,7 +305,7 @@ export default function App() {
 		} finally {
 			setIsGenerating(false);
 		}
-	}, [date, template, tools, model, valuesText, isGenerating]);
+	}, [date, template, tools, model, valuesText, reposText, isGenerating]);
 
 	return (
 		<div {...stylex.props(styles.page)}>
@@ -384,19 +389,29 @@ export default function App() {
 
 			<div {...stylex.props(styles.container)}>
 				<div {...stylex.props(styles.pane)}>
-					<div {...stylex.props(styles.label)}>Work Summary</div>
-					<textarea
-						{...stylex.props(styles.valuesTextarea)}
-						value={valuesText}
-						placeholder={'- 例: 認証画面のUI修正\\n- 例: バグ修正 (#123)'}
-						onChange={(e) => setValuesText(e.target.value)}
-					/>
-
-					<div {...stylex.props(styles.label)}>Template</div>
+					<div {...stylex.props(styles.label)}>Template (required)</div>
 					<textarea
 						{...stylex.props(styles.textarea)}
 						value={template}
 						onChange={(e) => setTemplate(e.target.value)}
+					/>
+
+					<div {...stylex.props(styles.label)}>Work Summary</div>
+					<textarea
+						{...stylex.props(styles.valuesTextarea)}
+						value={valuesText}
+						placeholder={
+							'(任意)\\n- 例: 認証画面のUI修正\\n- 例: バグ修正 (#123)'
+						}
+						onChange={(e) => setValuesText(e.target.value)}
+					/>
+
+					<div {...stylex.props(styles.label)}>Target Repos (optional)</div>
+					<textarea
+						{...stylex.props(styles.valuesTextarea)}
+						value={reposText}
+						placeholder={'owner/repo\\nowner2/repo2'}
+						onChange={(e) => setReposText(e.target.value)}
 					/>
 				</div>
 

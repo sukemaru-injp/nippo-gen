@@ -18,4 +18,5 @@ export type Draft = {
 	date: string;
 	tools: ToolKey[];
 	values: string[];
+	repos?: string[];
 };

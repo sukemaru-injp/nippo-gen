@@ -13,19 +13,28 @@ export async function collectSignals({
 		tools: draft.tools
 	});
 
+	const valuesJson = JSON.stringify(draft.values, null, 2);
 	const prompt = [
 		'Collect GitHub signals for the daily report.',
 		`Target date: ${draft.date}`,
+		draft.repos && draft.repos.length > 0
+			? `Target repos (only these): ${draft.repos.join(', ')}`
+			: 'Target repos: all accessible repos',
 		'Work summary items:',
-		JSON.stringify(draft.values, null, 2),
+		valuesJson,
 		'',
 		'If GitHub tools are available, search PRs, commits, and discussions related to the summary items.',
+		`If Work summary items is empty (${valuesJson === '[]' ? 'it is empty' : 'not empty'}), use recent activity for the target date instead (recent PRs, commits, and discussions).`,
+		'Prefer using GitHub tools when available; do not ask questions.',
 		'Return JSON only with keys: github (array), calendar (array).',
 		'Calendar can be empty for now.'
 	].join('\n');
 
 	const output = await agent.generate(prompt);
-	return normalizeCollectedData(output);
+	console.log('[collector] raw output', output);
+	const collected = normalizeCollectedData(output);
+	console.log('[collector] collected', collected);
+	return collected;
 }
 
 function normalizeCollectedData(output: unknown): CollectedData {
