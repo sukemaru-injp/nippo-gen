@@ -20,6 +20,7 @@
 - Indentation: tabs; line width 80; single quotes; semicolons (see `biome.json`).
 - Prefer TypeScript across server and UI. Keep modules small and named after their responsibility (e.g., `routes/generate.ts`, `services/format.ts`).
 - Use Biome for formatting and linting; run `pnpm check` before PRs.
+- Avoid forced type casts (`as`/`unknown`) to bypass errors; confirm actual type definitions (e.g., `.d.ts`) and model data properly.
 
 ## Testing Guidelines
 - No automated test framework is configured yet. If you add tests, document the framework and add scripts to `package.json`.

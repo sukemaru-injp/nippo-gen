@@ -31,3 +31,19 @@ export function getGithubMcpClient(): GithubMcpClient | null {
 
 	return client;
 }
+
+export type GithubMcpTools = Awaited<ReturnType<MCPClient['listTools']>>;
+let toolsCache: GithubMcpTools | null = null;
+export async function listGithubMcpTools() {
+	if (toolsCache) return toolsCache;
+	const mcp = getGithubMcpClient();
+	if (!mcp) return {};
+	try {
+		const tools = await mcp.listTools();
+		toolsCache = tools;
+		return tools;
+	} catch (error) {
+		console.warn('[github-mcp] listTools failed', error);
+		return {};
+	}
+}

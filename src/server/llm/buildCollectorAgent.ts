@@ -1,4 +1,5 @@
-import { getGithubMcpClient } from '@api/plugins/github-mcp';
+import type { GithubMcpTools } from '@api/plugins/github-mcp';
+import { listGithubMcpTools } from '@api/plugins/github-mcp';
 import type { ToolKey } from '@api/types';
 import { Agent } from '@mastra/core/agent';
 
@@ -7,16 +8,17 @@ const agentCache = new Map<string, Agent>();
 type Args = {
 	model: string;
 	tools: ToolKey[];
+	mcpTools?: GithubMcpTools;
 };
 
-export async function buildCollectorAgent({ model, tools }: Args) {
+export async function buildCollectorAgent({ model, tools, mcpTools }: Args) {
 	const key = `${model}:${tools.join('-')}`;
 	const cached = agentCache.get(key);
 	if (cached) return cached;
 
-	const mcp = tools.includes('github')
-		? await getGithubMcpClient()?.listToolsets()
-		: undefined;
+	const mcp =
+		mcpTools ??
+		(tools.includes('github') ? await listGithubMcpTools() : undefined);
 
 	const agent = new Agent({
 		id: 'nippo-collector',

@@ -1,5 +1,7 @@
 import { buildCollectorAgent } from '@api/llm/buildCollectorAgent';
 import { buildFormatterAgent } from '@api/llm/buildFormatterAgent';
+import type { GithubMcpTools } from '@api/plugins/github-mcp';
+import { listGithubMcpTools } from '@api/plugins/github-mcp';
 import { normalizeMastraOutput } from '@api/services/format';
 import { buildCollectionPlan } from '@api/services/plan';
 import type { CollectedData, Draft, ToolKey } from '@api/types';
@@ -126,12 +128,18 @@ const collectStep = createStep({
 			};
 		}
 
+		const githubTools = draft.tools.includes('github')
+			? filterGithubTools(await listGithubMcpTools())
+			: {};
 		const agent = await buildCollectorAgent({
 			model,
-			tools: draft.tools
+			tools: draft.tools,
+			mcpTools: githubTools
 		});
 
 		const valuesJson = JSON.stringify(plan.queries, null, 2);
+		const availableTools = Object.keys(githubTools).join(', ');
+
 		const prompt = [
 			'Collect GitHub signals for the daily report.',
 			`Target date: ${plan.date}`,
@@ -141,17 +149,36 @@ const collectStep = createStep({
 			'Work summary items:',
 			valuesJson,
 			'',
+			plan.repos.length > 0
+				? 'Restrict all searches to the target repos.'
+				: 'First list accessible repositories, then search within those repositories.',
+			availableTools
+				? `Available tools: ${availableTools}`
+				: 'No tools available.',
 			'If GitHub tools are available, search PRs, commits, and discussions related to the summary items.',
 			plan.useRecentActivity
 				? 'Work summary items is empty, so use recent activity for the target date instead (recent PRs, commits, and discussions).'
 				: 'Work summary items is not empty, use them as search queries.',
+			plan.useRecentActivity && availableTools
+				? 'You MUST call at least one GitHub tool to retrieve recent activity.'
+				: 'If tools are available, call them to gather matching PRs, commits, and discussions.',
+			'Use ONLY the listed tools (exact names). Do not invent tool names.',
 			'Prefer using GitHub tools when available; do not ask questions.',
 			'Return JSON only with keys: github (array), calendar (array).',
 			'Calendar can be empty for now.'
 		].join('\n');
 
-		const output = await agent.generate(prompt);
-		const collected = normalizeCollected(output);
+		let lastToolResults: unknown[] = [];
+		const output = await agent.generate(prompt, {
+			onStepFinish: ({ toolCalls, toolResults }) => {
+				console.log('[collector] toolCalls', toolCalls ?? []);
+				console.log('[collector] toolResults', toolResults ?? []);
+				if (toolResults && toolResults.length > 0) {
+					lastToolResults = toolResults;
+				}
+			}
+		});
+		const collected = normalizeCollected(output, lastToolResults);
 		console.log('[collector] collected', collected);
 
 		return {
@@ -216,19 +243,122 @@ export const nippoWorkflowCommitted = nippoWorkflow
 	.then(formatStep)
 	.commit();
 
-function normalizeCollected(output: unknown): CollectedData {
+function normalizeCollected(
+	output: unknown,
+	toolResults: unknown[] = []
+): CollectedData {
+	const fromTools = tryFromToolResults(toolResults);
+	if (fromTools) return fromTools;
+
 	const text = coerceText(output);
 	if (!text) return { github: [], calendar: [] };
 
-	try {
-		const parsed = JSON.parse(text) as CollectedData;
-		return {
-			github: Array.isArray(parsed.github) ? parsed.github : [],
-			calendar: Array.isArray(parsed.calendar) ? parsed.calendar : []
-		};
-	} catch {
+	const parsed = tryParseCollected(text);
+	return parsed ?? { github: [], calendar: [] };
+}
+
+function tryFromToolResults(toolResults: unknown[]): CollectedData | null {
+	for (const result of toolResults) {
+		const candidate = unwrapToolResult(result);
+		if (!candidate) continue;
+		const normalized = normalizeCollectedObject(candidate);
+		if (
+			(normalized.github?.length ?? 0) > 0 ||
+			(normalized.calendar?.length ?? 0) > 0
+		) {
+			return normalized;
+		}
+	}
+	return null;
+}
+
+function unwrapToolResult(value: unknown): unknown | null {
+	if (typeof value === 'string') {
+		return safeJsonParse(value);
+	}
+	if (!value || typeof value !== 'object') return null;
+	const record = value as Record<string, unknown>;
+	return (
+		record.result ?? record.output ?? record.data ?? record.content ?? record
+	);
+}
+
+function tryParseCollected(text: string): CollectedData | null {
+	const direct = safeJsonParse(text);
+	if (direct) return normalizeCollectedObject(direct);
+
+	const fenced = extractJsonFromFences(text);
+	if (fenced) {
+		const parsed = safeJsonParse(fenced);
+		if (parsed) return normalizeCollectedObject(parsed);
+	}
+
+	const inline = extractInlineJson(text);
+	if (inline) {
+		const parsed = safeJsonParse(inline);
+		if (parsed) return normalizeCollectedObject(parsed);
+	}
+
+	return null;
+}
+
+function normalizeCollectedObject(value: unknown): CollectedData {
+	if (!value || typeof value !== 'object') {
 		return { github: [], calendar: [] };
 	}
+	const record = value as Record<string, unknown>;
+	const github = Array.isArray(record.github) ? record.github : [];
+	const calendar = Array.isArray(record.calendar) ? record.calendar : [];
+	return { github, calendar };
+}
+
+function safeJsonParse(text: string): unknown | null {
+	try {
+		return JSON.parse(text);
+	} catch {
+		return null;
+	}
+}
+
+function extractJsonFromFences(text: string): string | null {
+	const match = text.match(/```(?:json)?\n([\s\S]*?)\n```/i);
+	return match ? match[1].trim() : null;
+}
+
+function extractInlineJson(text: string): string | null {
+	const start = text.indexOf('{');
+	const end = text.lastIndexOf('}');
+	if (start === -1 || end === -1 || end <= start) return null;
+	return text.slice(start, end + 1);
+}
+
+function filterGithubTools(tools: GithubMcpTools): GithubMcpTools {
+	const deniedPrefixes = [
+		'github_add_',
+		'github_assign_',
+		'github_create_',
+		'github_delete_',
+		'github_enable_',
+		'github_disable_',
+		'github_fork_',
+		'github_merge_',
+		'github_remove_',
+		'github_set_',
+		'github_update_'
+	];
+
+	const allowedPrefixes = ['github_get_', 'github_list_', 'github_search_'];
+
+	const entries = Object.entries(tools).filter(([name]) => {
+		if (deniedPrefixes.some((prefix) => name.startsWith(prefix))) return false;
+		return allowedPrefixes.some((prefix) => name.startsWith(prefix));
+	});
+
+	const filtered: GithubMcpTools = {};
+	for (const [name, tool] of entries) {
+		filtered[name] = tool;
+	}
+	return filtered;
 }
 
 function coerceText(output: unknown): string | null {
