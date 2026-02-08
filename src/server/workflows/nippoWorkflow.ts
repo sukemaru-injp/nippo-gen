@@ -4,7 +4,12 @@ import type { GithubMcpTools } from '@api/plugins/github-mcp';
 import { listGithubMcpTools } from '@api/plugins/github-mcp';
 import { normalizeMastraOutput } from '@api/services/format';
 import { buildCollectionPlan } from '@api/services/plan';
-import type { CollectedData, Draft, ToolKey } from '@api/types';
+import type {
+	CollectedData,
+	CollectedGithubItem,
+	Draft,
+	ToolKey
+} from '@api/types';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 
@@ -258,31 +263,161 @@ function normalizeCollected(
 }
 
 function tryFromToolResults(toolResults: unknown[]): CollectedData | null {
-	for (const result of toolResults) {
-		const candidate = unwrapToolResult(result);
-		if (!candidate) continue;
-		const normalized = normalizeCollectedObject(candidate);
-		if (
-			(normalized.github?.length ?? 0) > 0 ||
-			(normalized.calendar?.length ?? 0) > 0
-		) {
-			return normalized;
+	const github = toolResults.reduce<CollectedGithubItem[]>((acc, entry) => {
+		const payload = extractToolResultPayload(entry);
+		if (!payload) return acc;
+
+		const toolName = payload.toolName ?? '';
+		const data = payload.result ?? payload.output ?? payload.data ?? payload;
+
+		if (toolName === 'github_search_pull_requests') {
+			return acc.concat(mapSearchItemsToGithub(data, 'pr'));
 		}
+
+		if (toolName === 'github_search_issues') {
+			return acc.concat(mapSearchIssuesToGithub(data));
+		}
+
+		if (toolName === 'github_list_commits') {
+			return acc.concat(mapCommitsToGithub(data));
+		}
+
+		return acc;
+	}, []);
+
+	if (github.length > 0) {
+		return { github, calendar: [] };
 	}
+
 	return null;
 }
 
-function unwrapToolResult(value: unknown): unknown | null {
-	if (typeof value === 'string') {
-		return safeJsonParse(value);
+function extractToolResultPayload(
+	entry: unknown
+): {
+	toolName?: string;
+	result?: unknown;
+	output?: unknown;
+	data?: unknown;
+} | null {
+	if (!entry || typeof entry !== 'object') return null;
+	const record = entry as Record<string, unknown>;
+	if (record.payload && typeof record.payload === 'object') {
+		return record.payload as {
+			toolName?: string;
+			result?: unknown;
+			output?: unknown;
+			data?: unknown;
+		};
 	}
-	if (!value || typeof value !== 'object') return null;
-	const record = value as Record<string, unknown>;
-	return (
-		record.result ?? record.output ?? record.data ?? record.content ?? record
-	);
+	return record as {
+		toolName?: string;
+		result?: unknown;
+		output?: unknown;
+		data?: unknown;
+	};
 }
 
+function mapSearchItemsToGithub(
+	data: unknown,
+	type: CollectedGithubItem['type']
+) {
+	const items = extractItems(data);
+	return items
+		.map((item) => ({
+			type,
+			title: getString(item, ['title']) ?? '',
+			url: getString(item, ['html_url', 'url']) ?? '',
+			repo:
+				getString(item, ['repository', 'full_name']) ??
+				getString(item, ['repository_url']) ??
+				undefined,
+			author: getString(item, ['user', 'login']) ?? undefined,
+			date: getString(item, ['created_at']) ?? undefined
+		}))
+		.filter((item) => item.title && item.url);
+}
+
+function mapSearchIssuesToGithub(data: unknown) {
+	const items = extractItems(data);
+	return items
+		.map((item) => {
+			const isPull = Boolean(getValue(item, ['pull_request', 'url']));
+			const type: CollectedGithubItem['type'] = isPull ? 'pr' : 'discussion';
+			return {
+				type,
+				title: getString(item, ['title']) ?? '',
+				url: getString(item, ['html_url', 'url']) ?? '',
+				repo:
+					getString(item, ['repository', 'full_name']) ??
+					getString(item, ['repository_url']) ??
+					undefined,
+				author: getString(item, ['user', 'login']) ?? undefined,
+				date: getString(item, ['created_at']) ?? undefined
+			};
+		})
+		.filter((item) => item.title && item.url);
+}
+
+function mapCommitsToGithub(data: unknown) {
+	const items = extractItems(data);
+	return items
+		.map((item) => ({
+			type: 'commit' as CollectedGithubItem['type'],
+			title:
+				getString(item, ['commit', 'message']) ??
+				getString(item, ['message']) ??
+				'',
+			url: getString(item, ['html_url', 'url']) ?? '',
+			repo:
+				getString(item, ['repository', 'full_name']) ??
+				getString(item, ['repository_url']) ??
+				undefined,
+			author:
+				getString(item, ['author', 'login']) ??
+				getString(item, ['committer', 'login']) ??
+				undefined,
+			date:
+				getString(item, ['commit', 'author', 'date']) ??
+				getString(item, ['commit', 'committer', 'date']) ??
+				undefined
+		}))
+		.filter((item) => item.title && item.url);
+}
+
+function extractItems(data: unknown): Array<Record<string, unknown>> {
+	if (Array.isArray(data)) {
+		return data.filter((item) => item && typeof item === 'object') as Array<
+			Record<string, unknown>
+		>;
+	}
+	if (!data || typeof data !== 'object') return [];
+	const record = data as Record<string, unknown>;
+	const candidates = [record.items, record.data, record.results, record.result];
+	for (const candidate of candidates) {
+		if (Array.isArray(candidate)) {
+			return candidate.filter(
+				(item) => item && typeof item === 'object'
+			) as Array<Record<string, unknown>>;
+		}
+	}
+	return [];
+}
+
+function getString(value: unknown, path: string[]): string | null {
+	const result = getValue(value, path);
+	return typeof result === 'string' ? result : null;
+}
+
+function getValue(value: unknown, path: string[]): unknown {
+	let current = value;
+	for (const key of path) {
+		if (!current || typeof current !== 'object') return undefined;
+		const record = current as Record<string, unknown>;
+		current = record[key];
+	}
+	return current;
+}
 function tryParseCollected(text: string): CollectedData | null {
 	const direct = safeJsonParse(text);
 	if (direct) return normalizeCollectedObject(direct);
