@@ -1,4 +1,5 @@
 import { buildFormatterAgent } from '@api/llm/buildFormatterAgent';
+import { summarizeCollectedData } from '@api/services/collected';
 import { normalizeMastraOutput } from '@api/services/format';
 import type { Draft } from '@api/types';
 import { createStep } from '@mastra/core/workflows';
@@ -26,11 +27,12 @@ export const formatStep = createStep({
 	}),
 	execute: async ({ inputData }) => {
 		const { draft, plan, template, model, collected } = inputData;
+		const summarizedCollected = summarizeCollectedData(collected);
 
 		if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
 			return {
 				output: fallbackFormat(template, draft),
-				collected,
+				collected: summarizedCollected,
 				plan
 			};
 		}
@@ -44,13 +46,13 @@ export const formatStep = createStep({
 			JSON.stringify(draft, null, 2),
 			'',
 			'## collected(JSON)',
-			JSON.stringify(collected, null, 2)
+			JSON.stringify(summarizedCollected, null, 2)
 		].join('\n');
 
 		const output = await agent.generate(prompt);
 		return {
 			output: normalizeMastraOutput(output),
-			collected,
+			collected: summarizedCollected,
 			plan
 		};
 	}

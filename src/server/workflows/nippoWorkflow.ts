@@ -1,6 +1,6 @@
 import { createWorkflow } from '@mastra/core/workflows';
 import { WorkflowInputSchema, WorkflowOutputSchema } from './schemas';
-import { collectStep } from './steps/collectStep';
+import { collectGithubStep } from './steps/collectGithubStep';
 import { formatStep } from './steps/formatStep';
 import { planStep } from './steps/planStep';
 
@@ -12,6 +12,6 @@ export const nippoWorkflow = createWorkflow({
 
 export const nippoWorkflowCommitted = nippoWorkflow
 	.then(planStep)
-	.then(collectStep)
+	.then(collectGithubStep)
 	.then(formatStep)
 	.commit();

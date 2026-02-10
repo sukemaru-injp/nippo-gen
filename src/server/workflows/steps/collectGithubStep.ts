@@ -1,6 +1,7 @@
 import { buildCollectorAgent } from '@api/llm/buildCollectorAgent';
 import type { GithubMcpTools } from '@api/plugins/github-mcp';
 import { listGithubMcpTools } from '@api/plugins/github-mcp';
+import { summarizeCollectedData } from '@api/services/collected';
 import type { CollectedData, CollectedGithubItem, ToolKey } from '@api/types';
 import { createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
@@ -11,8 +12,8 @@ import {
 	ModelKeySchema
 } from '../schemas';
 
-export const collectStep = createStep({
-	id: 'collect',
+export const collectGithubStep = createStep({
+	id: 'collect-github',
 	inputSchema: z.object({
 		draft: DraftSchema,
 		plan: CollectionPlanSchema,
@@ -59,7 +60,10 @@ export const collectStep = createStep({
 		});
 
 		const valuesJson = JSON.stringify(plan.queries, null, 2);
-		const availableTools = Object.keys(githubTools).join(', ');
+		const availableToolsList = Object.keys(githubTools);
+		const availableTools = availableToolsList.join(',');
+		console.log('[collector] available tools', availableToolsList);
+		const toolChoice = availableToolsList.length > 0 ? 'required' : 'auto';
 
 		const prompt = [
 			'Collect GitHub signals for the daily report.',
@@ -83,6 +87,8 @@ export const collectStep = createStep({
 			plan.useRecentActivity && availableTools
 				? 'You MUST call at least one GitHub tool to retrieve recent activity.'
 				: 'If tools are available, call them to gather matching PRs, commits, and discussions.',
+			'Keep tool usage efficient. Do not repeat the same query unless previous results are empty.',
+			'Limit gathered GitHub items to the most relevant and recent ones.',
 			'Use ONLY the listed tools (exact names). Do not invent tool names.',
 			'Prefer using GitHub tools when available; do not ask questions.',
 			'Return JSON only with keys: github (array), calendar (array).',
@@ -90,13 +96,22 @@ export const collectStep = createStep({
 		].join('\n');
 
 		const output = await agent.generate(prompt, {
+			maxSteps: 8,
+			toolCallConcurrency: 2,
+			toolChoice,
 			onStepFinish: ({ toolCalls, toolResults }) => {
-				console.log('[collector] toolCalls', toolCalls ?? []);
-				console.log('[collector] toolResults', toolResults ?? []);
+				const toolCallCount = Array.isArray(toolCalls) ? toolCalls.length : 0;
+				const toolResultCount = Array.isArray(toolResults)
+					? toolResults.length
+					: 0;
+				console.log('[collector] step summary', {
+					toolCallCount,
+					toolResultCount
+				});
 			}
 		});
 
-		const collected = normalizeCollected(output);
+		const collected = summarizeCollectedData(normalizeCollected(output));
 		console.log('[collector] collected', collected);
 
 		return {
