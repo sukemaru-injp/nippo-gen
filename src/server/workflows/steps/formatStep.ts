@@ -31,6 +31,15 @@ export const formatStep = createStep({
 	execute: async ({ inputData }) => {
 		const { draft, plan, template, model, collected } = inputData;
 		const summarizedCollected = summarizeCollectedData(collected);
+		console.log('Started Format:', {
+			model,
+			date: draft.date,
+			tools: draft.tools,
+			values: draft.values,
+			plan,
+			templateLength: template.length,
+			collected: summarizedCollected
+		});
 
 		if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
 			return {

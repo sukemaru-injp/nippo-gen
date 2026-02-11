@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const ToolKeySchema = z.enum(['github', 'google_calendar']);
-export const ModelKeySchema = z.enum(['google/gemini-2.5-flash-lite']);
+export const ModelKeySchema = z.enum(['google/gemini-2.0-flash-lite']);
 
 export const DraftSchema = z.object({
 	date: z.string(),

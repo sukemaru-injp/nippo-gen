@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 const ToolKey = z.enum(['github', 'google_calendar']);
-const ModelKey = z.enum(['google/gemini-2.5-flash-lite']);
+const ModelKey = z.enum(['google/gemini-2.0-flash-lite']);
 
 const GenerateReq = z.object({
 	date: z.string(),
