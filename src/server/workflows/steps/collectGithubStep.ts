@@ -3,6 +3,7 @@ import type { GithubMcpTools } from '@api/plugins/github-mcp';
 import { listGithubMcpTools } from '@api/plugins/github-mcp';
 import { summarizeCollectedData } from '@api/services/collected';
 import type { CollectedData, CollectedGithubItem, ToolKey } from '@api/types';
+import type { AgentExecutionOptionsBase } from '@mastra/core/agent';
 import { createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
 import {
@@ -11,6 +12,11 @@ import {
 	DraftSchema,
 	ModelKeySchema
 } from '../schemas';
+
+type OnStepFinishPayload = Parameters<
+	NonNullable<AgentExecutionOptionsBase<unknown>['onStepFinish']>
+>[0];
+type StepToolResult = NonNullable<OnStepFinishPayload['toolResults']>[number];
 
 export const collectGithubStep = createStep({
 	id: 'collect-github',
@@ -95,6 +101,7 @@ export const collectGithubStep = createStep({
 			'Calendar can be empty for now.'
 		].join('\n');
 
+		const stepToolResults: StepToolResult[] = [];
 		const output = await agent.generate(prompt, {
 			maxSteps: 8,
 			toolCallConcurrency: 2,
@@ -104,14 +111,20 @@ export const collectGithubStep = createStep({
 				const toolResultCount = Array.isArray(toolResults)
 					? toolResults.length
 					: 0;
+				if (Array.isArray(toolResults)) {
+					stepToolResults.push(...toolResults);
+				}
 				console.log('[collector] step summary', {
 					toolCallCount,
-					toolResultCount
+					toolResultCount,
+					toolNames: summarizeToolNames(toolResults)
 				});
 			}
 		});
 
-		const collected = summarizeCollectedData(normalizeCollected(output));
+		const collected = summarizeCollectedData(
+			normalizeCollected(output, stepToolResults)
+		);
 		console.log('[collector] collected', collected);
 
 		return {
@@ -124,8 +137,12 @@ export const collectGithubStep = createStep({
 	}
 });
 
-function normalizeCollected(output: unknown): CollectedData {
-	const fromTools = tryFromToolResults(extractToolResultsFromOutput(output));
+function normalizeCollected(
+	output: unknown,
+	fallbackToolResults: unknown[] = []
+) {
+	const extracted = extractToolResultsFromOutput(output);
+	const fromTools = tryFromToolResults([...fallbackToolResults, ...extracted]);
 	if (fromTools) return fromTools;
 
 	const text = coerceText(output);
@@ -170,6 +187,14 @@ function tryFromToolResults(toolResults: unknown[]): CollectedData | null {
 	}
 
 	return null;
+}
+
+function summarizeToolNames(toolResults: unknown): string[] {
+	if (!Array.isArray(toolResults)) return [];
+	const names = toolResults
+		.map((entry) => extractToolResultPayload(entry)?.toolName)
+		.filter((name): name is string => typeof name === 'string');
+	return Array.from(new Set(names));
 }
 
 function extractToolResultPayload(entry: unknown): {

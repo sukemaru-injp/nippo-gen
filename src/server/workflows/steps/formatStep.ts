@@ -1,6 +1,9 @@
 import { buildFormatterAgent } from '@api/llm/buildFormatterAgent';
 import { summarizeCollectedData } from '@api/services/collected';
-import { normalizeMastraOutput } from '@api/services/format';
+import {
+	normalizeMastraOutput,
+	sanitizeFormatterOutput
+} from '@api/services/format';
 import type { Draft } from '@api/types';
 import { createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
@@ -51,7 +54,7 @@ export const formatStep = createStep({
 
 		const output = await agent.generate(prompt);
 		return {
-			output: normalizeMastraOutput(output),
+			output: sanitizeFormatterOutput(normalizeMastraOutput(output)),
 			collected: summarizedCollected,
 			plan
 		};

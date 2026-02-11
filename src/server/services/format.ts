@@ -43,7 +43,7 @@ export async function formatNippoWithMastra({
 			console.log({ text, toolCalls, toolResults, finishReason, usage });
 		}
 	});
-	return normalizeMastraOutput(output);
+	return sanitizeFormatterOutput(normalizeMastraOutput(output));
 }
 
 function fallbackFormat(template: string, draft: Draft) {
@@ -79,4 +79,24 @@ export function normalizeMastraOutput(output: unknown): string {
 	}
 
 	return JSON.stringify(output, null, 2);
+}
+
+export function sanitizeFormatterOutput(text: string): string {
+	const withoutDraft = removeDebugSection(text, 'draft\\(JSON\\)');
+	const withoutCollected = removeDebugSection(
+		withoutDraft,
+		'collected\\(JSON\\)'
+	);
+	return withoutCollected.trim();
+}
+
+function removeDebugSection(text: string, sectionNamePattern: string): string {
+	const heading = `##\\s*${sectionNamePattern}\\s*`;
+	const fencedBlock = '```[\\s\\S]*?```\\s*';
+	const nextHeadingOrEnd = '(?=\\n##\\s+|$)';
+	const pattern = new RegExp(
+		`${heading}(?:\\n${fencedBlock})?${nextHeadingOrEnd}`,
+		'gi'
+	);
+	return text.replace(pattern, '').trim();
 }
